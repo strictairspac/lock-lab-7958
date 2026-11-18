@@ -3,3 +3,6 @@
 -- Critical locking query (worker only):
 -- SELECT remaining FROM trial_balances WHERE trial_id = :id FOR UPDATE;
 -- SET LOCAL lock_timeout = '250ms';
+-- Blocking evidence collector (worker only, third read-only connection):
+-- SELECT ... FROM pg_stat_activity WHERE pid = ANY(pg_blocking_pids(:waiter_pid));
+-- Segments land in block_evidences, unique on (trial_id, waiter_pid, seg_no).

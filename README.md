@@ -10,6 +10,7 @@
 - 流转申请：关联样本、指定数量和接收实验室。
 - 并发执行：Redis 队列、独立 Python worker、可设锁等待上限。
 - 冲突证据：Backend PID、SQLSTATE、回执回滚、数量守恒与 JSON 导出。
+- 阻塞时间线：B 等待期间按 25ms 采样 `pg_blocking_pids`，换阻塞者分段记录，超时后可查"到底被哪个事务堵住"。
 - 管理员审计：登录、写入和执行动作。
 
 ## 启动
@@ -37,6 +38,8 @@ docker compose exec -T backend python -m scripts.seed_demo
 这是**真实数据库行锁的受控演练**。每次以样本可用量建立独立 `trial_balances` 镜像行，不扣减原台账。A 使用 `SELECT FOR UPDATE` 持锁并写未提交回执；Python threading.Event 确保 B 在 A 持锁期间运行。B 先写自己的回执，再以指定 `lock_timeout` 请求同一行锁；PostgreSQL 返回 SQLSTATE 55P03 后完整 ROLLBACK。B 结束事件释放 A，A 扣减 remaining、增加 received 并 COMMIT。没有随机结果、sleep 假等待或假 SQL 计划。
 
 输入：流转申请、50–2000ms 锁等待上限。输出：实际 PID、错误码、等待耗时、剩余量、接收量、回执数和 SHA256。口径为 `remaining + received == initial`、remaining非负、仅A回执一条；B回执必须为零。等待耗时受主机负载影响，SHA包含PID和实际耗时因此每次不同。算法输入和最终不变量可复现。失败态包括申请量超限、数据库错误、线程协调超时、队列不可用；页面显示错误并允许创建新演练。
+
+阻塞证据由独立第三连接、独立线程采集，只读 `pg_blocking_pids`/`pg_stat_activity` 共享内存视图，A 的提交只等待 B 结束事件，**采集不延长演练持锁时间**。阻塞者身份为 (PID, backend_start)，连接复用或并发演练不会记到别场；每段开启即提交，等待中证据页即可看到已确认段；阻塞者集合变化即换段；采集器中断恢复时补 `kind='gap'` 空档标记，空档前的已确认段照常可查；`(trial_id, waiter_pid, seg_no)` 唯一约束保证重试不重复记同一段。旧演练无阻塞段，其原证据与导出不受影响。
 
 单 worker 顺序运行任务，无生产重试/崩溃恢复调度；worker中断时 running 任务需要人工重建，不能用作生产样本库存扣减。
 

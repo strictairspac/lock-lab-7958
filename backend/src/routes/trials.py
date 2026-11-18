@@ -12,7 +12,10 @@ from fastapi.responses import Response
 import json
 @router.get('/trials/{ident}')
 def detail(ident:int,db=Depends(db_session),user=Depends(current)): return service.detail(db,ident)
+@router.get('/trials/{ident}/blocking')
+def blocking(ident:int,db=Depends(db_session),user=Depends(current)): return service.blocking(db,ident)
 @router.get('/trials/{ident}/export')
 def export(ident:int,db=Depends(db_session),user=Depends(current)):
     obj=service.detail(db,ident)
+    obj['blocking']=service.blocking(db,ident)['segments']
     return Response(json.dumps(obj,ensure_ascii=False,indent=2),media_type='application/json',headers={'Content-Disposition':f'attachment; filename="trial-{ident}.json"'})

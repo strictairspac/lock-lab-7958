@@ -28,6 +28,15 @@ class Receipt(Base):
     id=Column(Integer,primary_key=True);trial_id=Column(Integer,ForeignKey('trials.id'),nullable=False)
     actor=Column(String(20),nullable=False);quantity=Column(Integer,nullable=False)
     __table_args__=(UniqueConstraint('trial_id','actor'),)
+class BlockEvidence(Base):
+    __tablename__='block_evidences'
+    id=Column(Integer,primary_key=True);trial_id=Column(Integer,ForeignKey('trials.id'),nullable=False)
+    waiter_pid=Column(Integer,nullable=False);seg_no=Column(Integer,nullable=False)
+    kind=Column(String(10),nullable=False,default='segment')
+    blockers=Column(JSON,nullable=False,default=list)
+    first_seen=Column(DateTime(timezone=True),nullable=False);last_seen=Column(DateTime(timezone=True),nullable=False)
+    samples=Column(Integer,nullable=False,default=1);note=Column(String(200),default='')
+    __table_args__=(UniqueConstraint('trial_id','waiter_pid','seg_no'),)
 class Audit(Base):
     __tablename__='audit_logs'
     id=Column(Integer,primary_key=True);actor=Column(String(120),nullable=False);action=Column(String(160),nullable=False)

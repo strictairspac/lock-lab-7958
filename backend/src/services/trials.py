@@ -6,6 +6,7 @@ from src.config.settings import REDIS_URL
 from src.models.entities import Trial,Transfer,Sample,TrialBalance
 from src.utils.serialization import record
 from .common import save
+from .blocking import timeline
 from src.constants.enums import RUN_STATES
 queue=Redis.from_url(REDIS_URL,decode_responses=True)
 def listing(db): return [record(x) for x in db.scalars(select(Trial).order_by(Trial.id.desc()))]
@@ -13,6 +14,9 @@ def detail(db,ident):
     obj=db.get(Trial,ident)
     if not obj: raise HTTPException(404,'演练不存在')
     return record(obj)
+def blocking(db,ident):
+    if not db.get(Trial,ident): raise HTTPException(404,'演练不存在')
+    return {'trial_id':ident,'segments':timeline(db,ident)}
 def create(db,data,user):
     transfer=db.get(Transfer,data.transfer_id)
     if not transfer: raise HTTPException(404,'流转申请不存在')
